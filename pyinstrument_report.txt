@@ -1,0 +1,23 @@
+
+  _     ._   __/__   _ _  _  _ _/_   Recorded: 10:17:17  Samples:  72
+ /_//_/// /_\ / //_// / //_'/ //     Duration: 0.074     CPU time: 0.078
+/   _/                      v5.1.1
+
+Profile at C:\Users\user.DESKTOP-QE8KETU\Desktop\BE_Project\main.py:17
+
+0.073 MainThread  <thread>:4816
+├─ 0.068 Session.execute  sqlalchemy\orm\session.py:2305
+│     [254 frames hidden]  sqlalchemy, <built-in>, weakref
+└─ 0.005 <module>  <string>:1
+      [25 frames hidden]  multiprocessing, uvicorn, asyncio, st...
+         0.004 run_endpoint_function  fastapi\routing.py:280
+         └─ 0.004 get_shops  src\api\routers\shop_routes.py:11
+            └─ 0.004 get_shops_for_user  src\services\shop_service.py:8
+               └─ 0.004 get_all_shops  src\repositories\shop_repo.py:8
+                  ├─ 0.002 AsyncSession.execute  sqlalchemy\ext\asyncio\session.py:438
+                  │     [15 frames hidden]  sqlalchemy, aiomysql, pymysql
+                  ├─ 0.001 select  sqlalchemy\sql\_selectable_constructors.py:496
+                  │     [7 frames hidden]  sqlalchemy
+                  └─ 0.001 Logger.info  logging\__init__.py:1512
+                        [5 frames hidden]  logging, <frozen ntpath>, <built-in>
+
