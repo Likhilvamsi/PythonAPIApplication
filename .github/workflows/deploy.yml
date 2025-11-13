@@ -1,0 +1,78 @@
+name: Deploy Flutter Web (Production)
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------
+      # 1. Get latest code
+      # -------------------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # -------------------------
+      # 2. Setup Flutter
+      # -------------------------
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.7"
+
+      # -------------------------
+      # 3. Install dependencies
+      # -------------------------
+      - name: Install Flutter Packages
+        run: flutter pub get
+
+      # -------------------------
+      # 4. Build Flutter Web
+      # -------------------------
+      - name: Build Flutter Web
+        run: flutter build web --release
+
+      # -------------------------
+      # 5. Clean old frontend files on VM
+      # -------------------------
+      - name: Clean old web files on VM
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "🧹 Cleaning existing web files..."
+            sudo rm -rf ~/app/frontend/*
+            echo "✅ Old files removed."
+
+      # -------------------------
+      # 6. Upload new web build
+      # -------------------------
+      - name: Upload Web Build to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "build/web/*"
+          target: "~/app/frontend/"
+          overwrite: true
+
+      # -------------------------
+      # 7. Restart Nginx web server
+      # -------------------------
+      - name: Restart Nginx
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "🔄 Restarting Nginx..."
+            sudo systemctl restart nginx
+            sudo systemctl status nginx --no-pager
+            echo "🚀 Deployment complete!"
