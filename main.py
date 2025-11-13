@@ -7,10 +7,10 @@ from pyinstrument import Profiler
 from src.core.logger import logger
 from src.core.scheduler import start_scheduler, shutdown_scheduler
 from src.db.database import Base, engine
-from src.api.routers import user_router, shop_routes, barber_routes
+from src.api.routers import user_router, shop_routes, barber_routes, menu_routes
 
 
-# ✅ Middleware for profiling
+#  Middleware for profiling
 class PyInstrumentMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         profiler = Profiler()
@@ -56,7 +56,7 @@ app.add_middleware(
 app.include_router(user_router.router, tags=["Users"])
 app.include_router(shop_routes.router, tags=["Shops"])
 app.include_router(barber_routes.router, tags=["Barbers"])
-
+app.include_router(menu_routes.router, tags=["Menu"])
 # Application startup event
 @app.on_event("startup")
 async def on_startup():

@@ -35,6 +35,8 @@ class Shop(Base):
     
     owner = relationship("User")
     barbers = relationship("Barber", back_populates="shop", cascade="all, delete")
+    menu_items = relationship("Menu", back_populates="shop", cascade="all, delete")
+
 
 
 class Barber(Base):
@@ -122,3 +124,18 @@ class BarberAvailability(Base):
     __table_args__ = (
         UniqueConstraint("barber_id", "available_date", name="uq_barber_availability"),
     )
+
+class Menu(Base):
+    __tablename__ = "menu"
+
+    menu_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    shop_id = Column(Integer, ForeignKey("shops.shop_id", ondelete="CASCADE"), nullable=False)
+    service_name = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    price = Column(DECIMAL(10, 2), nullable=False)
+    duration_minutes = Column(Integer, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationship
+    shop = relationship("Shop", back_populates="menu_items")
