@@ -12,18 +12,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Upload Backend to VM (Skip .git + hidden files)
+      - name: Upload Backend Files
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: azureuser
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "app/backend/*"
+
+          # upload ALL files except .git and .github
+          source: |
+            ./*
+            !.git/
+            !.github/
+
           target: "/home/azureuser/app/backend/"
           overwrite: true
-          rm: false
 
-      - name: Install Dependencies + Restart Service
+      - name: Install Dependencies & Restart Service
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
