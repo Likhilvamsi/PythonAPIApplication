@@ -3,18 +3,13 @@ name: Deploy FastAPI Backend
 on:
   push:
     branches: ["main"]
-    paths:
-      - "app/backend/**"
-      - "requirements.txt"
-      - ".github/workflows/deploy.yml"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Upload backend files to VM
@@ -23,22 +18,17 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "app/backend/*"
-          target: "~/app/backend/"
+          source: "./*"
+          target: "/home/azureuser/app/backend/"
           overwrite: true
 
-      - name: Restart FastAPI Backend
+      - name: Restart FastAPI systemd service
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ~/app/backend
-            source venv/bin/activate || python3 -m venv venv && source venv/bin/activate
-            pip install -r requirements.txt
-            sudo systemctl daemon-reload
+            cd /home/azureuser/app/backend
+            pip3 install -r requirements.txt
             sudo systemctl restart fastapi
-            sudo systemctl status fastapi --no-pager
-            echo "🔥 Backend deployed successfully!"
-
