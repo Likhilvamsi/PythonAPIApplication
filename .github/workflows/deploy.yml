@@ -12,23 +12,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Upload backend files to VM
+      - name: Upload backend code to VM
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          username: azureuser
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "./*"
           target: "/home/azureuser/app/backend/"
           overwrite: true
 
-      - name: Restart FastAPI systemd service
+      - name: Restart FastAPI with systemd
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          username: azureuser
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/azureuser/app/backend
-            pip3 install -r requirements.txt
+            sudo systemctl daemon-reload
             sudo systemctl restart fastapi
+            sudo systemctl status fastapi --no-pager
