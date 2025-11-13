@@ -1,4 +1,4 @@
-name: Deploy Backend
+name: Deploy FastAPI Backend
 
 on:
   push:
@@ -9,34 +9,56 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: 📥 Checkout Backend Repo
         uses: actions/checkout@v4
 
-      - name: Upload Backend Files
+      - name: 🧹 Remove unwanted folders before upload
+        run: |
+          rm -rf .git
+          rm -rf .github
+
+      - name: 📤 Upload backend to Azure VM
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: azureuser
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-          # upload ALL files except .git and .github
-          source: |
-            ./*
-            !.git/
-            !.github/
-
+          source: "./"
           target: "/home/azureuser/app/backend/"
           overwrite: true
+          rm: true
 
-      - name: Install Dependencies & Restart Service
+      - name: 🚀 Setup VENV + Install Requirements + Restart Service
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
           username: azureuser
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            echo "➡ PATH: $PATH"
+            echo "➡ Deploying backend..."
+
             cd /home/azureuser/app/backend
-            python3 -m venv venv
+
+            # Ensure python3-venv exists
+            sudo apt-get update -y
+            sudo apt-get install -y python3-venv
+
+            # Create virtual env if not exists
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+
+            # Activate venv
             source venv/bin/activate
+
+            # Install required packages
+            pip install --upgrade pip
             pip install -r requirements.txt
+
+            # Restart FastAPI systemd service
+            sudo systemctl daemon-reload
             sudo systemctl restart fastapi
+
+            echo "✅ FastAPI restarted!"
+            sudo systemctl status fastapi --no-pager
