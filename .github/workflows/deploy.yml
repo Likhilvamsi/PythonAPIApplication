@@ -1,4 +1,4 @@
-name: Deploy FastAPI Backend
+name: Deploy FastAPI Backend (Production)
 
 on:
   push:
@@ -12,23 +12,67 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # 🧹 Clean old backend (optional but recommended)
+      - name: Clean backend folder on VM
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo rm -rf /home/azureuser/app/backend/*
+            mkdir -p /home/azureuser/app/backend
+
+      # 📦 Upload backend code
       - name: Upload backend code to VM
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: azureuser
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "./*"
           target: "/home/azureuser/app/backend/"
           overwrite: true
 
-      - name: Restart FastAPI with systemd
+      # 🚀 Install dependencies + create venv + restart systemd service
+      - name: Install & Restart FastAPI
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: azureuser
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            echo "🐍 Creating virtual environment..."
+            cd /home/azureuser/app/backend
+
+            python3 -m venv venv
+            source venv/bin/activate
+            
+            echo "📦 Installing dependencies..."
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            echo "🏗️ Writing systemd service file..."
+            sudo bash -c 'cat > /etc/systemd/system/fastapi.service <<EOF
+            [Unit]
+            Description=FastAPI Backend
+            After=network.target
+
+            [Service]
+            User=azureuser
+            WorkingDirectory=/home/azureuser/app/backend
+            Environment="PATH=/home/azureuser/app/backend/venv/bin"
+            ExecStart=/home/azureuser/app/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+            Restart=always
+            RestartSec=5
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF'
+
+            echo "🔄 Reloading and restarting service..."
             sudo systemctl daemon-reload
             sudo systemctl restart fastapi
-            sudo systemctl status fastapi --no-pager
+            sudo systemctl enable fastapi
+
+            echo "✅ Deployment completed!"
