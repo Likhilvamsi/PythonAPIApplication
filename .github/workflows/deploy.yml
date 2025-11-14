@@ -12,21 +12,19 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # 🔥 Create clean deploy folder (no .git, no .github)
-      - name: Prepare Clean Deploy Folder
+      # CLEAN deploy folder (remove .git, .github, etc.)
+      - name: Prepare Clean Backend Package
         run: |
           mkdir deploy
           shopt -s dotglob
           cp -r * deploy || true
-          # Remove unwanted folders/files
           rm -rf deploy/.git
           rm -rf deploy/.github
           rm -rf deploy/*.md
           rm -rf deploy/LICENSE
-          rm -rf deploy/.gitignore
 
-      # 🔥 Upload only the cleaned backend folder
-      - name: Upload Backend Files to Server
+      # UPLOAD backend clean package
+      - name: Upload Backend to Server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -36,34 +34,29 @@ jobs:
           target: "/home/${{ secrets.SSH_USER }}/app/backend/"
           overwrite: true
 
-      # 🔥 Auto Setup Backend (Python, Venv, FastAPI Service)
-      - name: Auto Setup Backend
+      # FULL SERVER AUTOMATION
+      - name: Setup Backend Automatically
         uses: appleboy/ssh-action@v1.0.1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "📦 Installing Python..."
+            echo "📦 Installing Python & pip..."
             sudo apt update -y
             sudo apt install python3 python3-pip python3-venv -y
 
-            echo "📁 Ensuring backend directory exists..."
-            mkdir -p /home/${{ secrets.SSH_USER }}/app/backend
+            echo "🐍 Recreating virtual environment..."
+            rm -rf /home/${{ secrets.SSH_USER }}/app/backend/venv
+            python3 -m venv /home/${{ secrets.SSH_USER }}/app/backend/venv
 
-            echo "🐍 Creating virtual environment if missing..."
-            if [ ! -d "/home/${{ secrets.SSH_USER }}/app/backend/venv" ]; then
-              python3 -m venv /home/${{ secrets.SSH_USER }}/app/backend/venv
-            fi
+            echo "⬆️ Upgrading pip inside venv..."
+            /home/${{ secrets.SSH_USER }}/app/backend/venv/bin/python3 -m pip install --upgrade pip
 
-            echo "⬆️ Upgrading pip..."
-            /home/${{ secrets.SSH_USER }}/app/backend/venv/bin/pip install --upgrade pip
+            echo "📦 Installing backend requirements..."
+            /home/${{ secrets.SSH_USER }}/app/backend/venv/bin/pip install -r /home/${{ secrets.SSH_USER }}/app/backend/requirements.txt
 
-            echo "📦 Installing backend dependencies..."
-            cd /home/${{ secrets.SSH_USER }}/app/backend
-            /home/${{ secrets.SSH_USER }}/app/backend/venv/bin/pip install -r requirements.txt
-
-            echo "⚙️ Creating FastAPI systemd service (auto-overwrite)..."
+            echo "⚙️ Updating FastAPI systemd service..."
             sudo tee /etc/systemd/system/fastapi.service > /dev/null <<EOF
             [Unit]
             Description=FastAPI Backend Service
@@ -79,9 +72,9 @@ jobs:
             WantedBy=multi-user.target
             EOF
 
-            echo "🔄 Restarting FastAPI service..."
+            echo "🔄 Restarting FastAPI..."
             sudo systemctl daemon-reload
             sudo systemctl enable fastapi
             sudo systemctl restart fastapi
 
-            echo "✅ Backend deployed successfully!"
+            echo "🚀 Backend deployment complete!"
