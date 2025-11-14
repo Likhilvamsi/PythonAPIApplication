@@ -1,4 +1,4 @@
-name: Deploy FastAPI Backend
+name: Deploy Backend
 
 on:
   push:
@@ -9,56 +9,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout Backend Repo
-        uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-      - name: 🧹 Remove unwanted folders before upload
-        run: |
-          rm -rf .git
-          rm -rf .github
-
-      - name: 📤 Upload backend to Azure VM
+      # Upload all backend code to server
+      - name: Upload Backend Files
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: azureuser
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "./"
           target: "/home/azureuser/app/backend/"
           overwrite: true
-          rm: true
 
-      - name: 🚀 Setup VENV + Install Requirements + Restart Service
-        uses: appleboy/ssh-action@v0.1.10
+      # Install dependencies + restart service
+      - name: Install Dependencies & Restart Service
+        uses: appleboy/ssh-action@v1.0.1
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: azureuser
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "➡ PATH: $PATH"
-            echo "➡ Deploying backend..."
+            echo "Creating backend folder if missing..."
+            mkdir -p /home/azureuser/app/backend
 
-            cd /home/azureuser/app/backend
-
-            # Ensure python3-venv exists
-            sudo apt-get update -y
-            sudo apt-get install -y python3-venv
-
-            # Create virtual env if not exists
-            if [ ! -d "venv" ]; then
-              python3 -m venv venv
+            echo "Creating venv if missing..."
+            if [ ! -d "/home/azureuser/app/backend/venv" ]; then
+              python3 -m venv /home/azureuser/app/backend/venv
             fi
 
-            # Activate venv
-            source venv/bin/activate
+            echo "Upgrading pip..."
+            /home/azureuser/app/backend/venv/bin/pip install --upgrade pip
 
-            # Install required packages
-            pip install --upgrade pip
-            pip install -r requirements.txt
+            echo "Installing requirements..."
+            cd /home/azureuser/app/backend
+            /home/azureuser/app/backend/venv/bin/pip install -r requirements.txt
 
-            # Restart FastAPI systemd service
-            sudo systemctl daemon-reload
+            echo "Restarting FastAPI service..."
             sudo systemctl restart fastapi
-
-            echo "✅ FastAPI restarted!"
-            sudo systemctl status fastapi --no-pager
